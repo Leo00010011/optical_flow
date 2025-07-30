@@ -9,6 +9,8 @@ from utils.utils import load_ckpt, coords_grid, bilinear_sampler
 from utils.flow_viz import flow_to_image
 from inference_tools import InferenceWrapper
 
+
+WINDOWS = os.name == 'nt'
 # for the statistical test get ideas from error metrics in optical flow
 # from args need
 class DotDict(dict):
@@ -24,7 +26,6 @@ args = {
 'iters':  5,#iterations of the optimization of the optical flow
 'var_min':  0,#lamping value
 'var_max':  10,#clamping value
-'ckpt':  'model\\weights\\tar-c-t.pth', # path to the checkpoint#
 'name':  'common',#
 "image_size": [432, 960],
 "scale": 0,
@@ -33,7 +34,14 @@ args = {
 "algorithm": "vitwarp",
 }
 
+if WINDOWS:
+    args['ckpt'] = 'model\\weights\\tar-c-t.pth', # path to the checkpoint#
+else:
+    args['ckpt'] = 'model/weights/tar-c-t.pth'
+
 args = DotDict(args)
+
+
 def batch_iterator(video_path: str, batch_size: int):
     '''
     A frame iterator that reads the data in batches
@@ -86,14 +94,18 @@ def demo_data(model, image1, image2):
         cv2.imwrite(f"{path}flow_{i}.jpg", flow_vis)
 
 # load the model
-device = 'cpu'
+device = 'cuda'
 model = ViTWarpV8(args)
 load_ckpt(model, args.ckpt)
 model = model.cuda()
 model.eval()
 wrapped_model = InferenceWrapper(model, scale=args.scale, train_size=args.image_size, pad_to_train_size=False, tiling=False)
 # load the images
-video_path = "C:\\Users\\ulloa\\OneDrive\\Desktop\\Practicas\\projectes\\k-coefficient\\repsol_BV1000330_20.mp4"
+if WINDOWS:
+    video_path = "C:\\Users\\ulloa\\OneDrive\\Desktop\\Practicas\\projectes\\k-coefficient\\repsol_BV1000330_20.mp4"
+else:
+    video_path = "/home/jlpp/SOAT_b/test/turtuid/videos/repsol_BV1000330_20.mp4"
+
 for pair in batch_iterator(video_path, 2):
     break
 # transform the images
