@@ -81,9 +81,9 @@ def batch_iterator(video_path: str, batch_size: int):
         yield batch, timestamp_ms
     cap.release()
 
+@torch.no_grad()
 def demo_data(model, image1, image2):
     path = f"results/"
-    os.system(f"mkdir -p {path}")
     H, W = image1.shape[2:]
     cv2.imwrite(f"{path}image1.jpg", cv2.cvtColor(image1[0].permute(1, 2, 0).cpu().numpy(), cv2.COLOR_RGB2BGR))
     cv2.imwrite(f"{path}image2.jpg", cv2.cvtColor(image2[0].permute(1, 2, 0).cpu().numpy(), cv2.COLOR_RGB2BGR))
@@ -94,13 +94,13 @@ def demo_data(model, image1, image2):
         cv2.imwrite(f"{path}flow_{i}.jpg", flow_vis)
 
 # load the model
-# device = 'cuda'
-# model = ViTWarpV8(args)
-# load_ckpt(model, args.ckpt)
-# model = model.cuda()
-# model.eval()
-# wrapped_model = InferenceWrapper(model, scale=args.scale, train_size=args.image_size, pad_to_train_size=False, tiling=False)
-# # load the images
+device = 'cuda'
+model = ViTWarpV8(args)
+load_ckpt(model, args.ckpt)
+model = model.cuda()
+model.eval()
+wrapped_model = InferenceWrapper(model, scale=args.scale, train_size=args.image_size, pad_to_train_size=False, tiling=False)
+# load the images
 if WINDOWS:
     video_path = "C:\\Users\\ulloa\\OneDrive\\Desktop\\Practicas\\projectes\\k-coefficient\\repsol_BV1000330_20.mp4"
 else:
@@ -110,16 +110,12 @@ for pair in batch_iterator(video_path, 2):
     break
 # transform the images
 [img1, img2] = pair[0]
-cv2.imshow('test1',img1)
-cv2.imshow('test2', img2)
-cv2.waitKey(-1)
-cv2.destroyAllWindows()
-# img1 = np.array(img1).astype(np.uint8)[..., :3]
-# img2 = np.array(img2).astype(np.uint8)[..., :3]
-# img1 = torch.from_numpy(img1).permute(2, 0, 1).float()
-# img2 = torch.from_numpy(img2).permute(2, 0, 1).float()
-# img1 = img1[None].to(device)
-# img2 = img2[None].to(device)
-# # get the optical flow in compressed format
-# demo_data(model, img1, img2)
+img1 = np.array(img1).astype(np.uint8)[..., :3]
+img2 = np.array(img2).astype(np.uint8)[..., :3]
+img1 = torch.from_numpy(img1).permute(2, 0, 1).float()
+img2 = torch.from_numpy(img2).permute(2, 0, 1).float()
+img1 = img1[None].to(device)
+img2 = img2[None].to(device)
+# get the optical flow in compressed format
+demo_data(wrapped_model, img1, img2)
 # get the optical flow visualization
