@@ -83,15 +83,20 @@ def batch_iterator(video_path: str, batch_size: int):
 
 @torch.no_grad()
 def demo_data(model, image1, image2):
-    path = f"results/"
     H, W = image1.shape[2:]
     output = model.calc_flow(image1, image2)
     flow = output['flow'][-1]
     flow = flow[0].permute(1, 2, 0).cpu().numpy()
-    np.savez_compressed("{path}flow.npz", flow)
     flow_vis = flow_to_image(flow, convert_to_bgr=True)
-    cv2.imwrite(f"{path}flow.jpg", flow_vis)
+    return flow, flow_vis
 
+def prepare_image(img):
+    img = np.array(img).astype(np.uint8)[..., :3]
+    img = torch.from_numpy(img).permute(2, 0, 1).float()
+    img = img[None].to(device)
+    return img
+
+##############################################
 # load the model
 device = 'cuda'
 model = ViTWarpV8(args)
@@ -99,22 +104,36 @@ load_ckpt(model, args.ckpt)
 model = model.cuda()
 model.eval()
 wrapped_model = InferenceWrapper(model, scale=args.scale, train_size=args.image_size, pad_to_train_size=False, tiling=False)
-# load the images
+
+# ########################################
+# load the video
 if WINDOWS:
     video_path = "C:\\Users\\ulloa\\OneDrive\\Desktop\\Practicas\\projectes\\k-coefficient\\repsol_BV1000330_20.mp4"
 else:
     video_path = "/home/jlpp/SOAT_b/test/turtuid/videos/repsol_BV1000330_20.mp4"
 
-for pair in batch_iterator(video_path, 2):
-    break
-# transform the images
-[img1, img2] = pair[0]
-img1 = np.array(img1).astype(np.uint8)[..., :3]
-img2 = np.array(img2).astype(np.uint8)[..., :3]
-img1 = torch.from_numpy(img1).permute(2, 0, 1).float()
-img2 = torch.from_numpy(img2).permute(2, 0, 1).float()
-img1 = img1[None].to(device)
-img2 = img2[None].to(device)
-# get the optical flow in compressed format
-demo_data(wrapped_model, img1, img2)
-# get the optical flow visualization
+path = f"results/"
+batch_size = 100
+last_one = []
+flow_list = []
+viz_list = []
+
+for idx, (batch, times) in enumerate(batch_iterator(video_path, batch_size)):
+    batch = last_one + batch # pairing last one from previous batch with first one of the current 
+    for i in range(len(batch) - 1):
+        img1 = prepare_image(batch[i])
+        img2 = prepare_image(batch[i + 1])
+        flow, flow_viz = demo_data(wrapped_model, img1, img2)
+        flow_list.append(flow)
+        viz_list.append(flow_viz)
+    last_one = [batch[-1]]
+
+    batch_id = (idx + 1)* batch_size
+    flow_data = {
+        'times': times,
+        'flow': flow_list
+    }
+    np.savez_compressed(f"{path}flow_{batch_id}.npz", flow_data)
+    for j, img in enumerate(viz_list):
+        img_id = (idx*batch_size + j) + 1
+        cv2.imwrite(f"{path}flow_{img_id}.jpg", img)
