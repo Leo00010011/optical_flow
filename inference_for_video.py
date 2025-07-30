@@ -85,13 +85,12 @@ def batch_iterator(video_path: str, batch_size: int):
 def demo_data(model, image1, image2):
     path = f"results/"
     H, W = image1.shape[2:]
-    cv2.imwrite(f"{path}image1.jpg", cv2.cvtColor(image1[0].permute(1, 2, 0).cpu().numpy(), cv2.COLOR_RGB2BGR))
-    cv2.imwrite(f"{path}image2.jpg", cv2.cvtColor(image2[0].permute(1, 2, 0).cpu().numpy(), cv2.COLOR_RGB2BGR))
     output = model.calc_flow(image1, image2)
-    for i in range(len(output['flow'])):
-        flow= output['flow'][i]
-        flow_vis = flow_to_image(flow[0].permute(1, 2, 0).cpu().numpy(), convert_to_bgr=True)
-        cv2.imwrite(f"{path}flow_{i}.jpg", flow_vis)
+    flow = output['flow'][-1]
+    flow = flow[0].permute(1, 2, 0).cpu().numpy()
+    np.savez_compressed("{path}flow.npz", flow)
+    flow_vis = flow_to_image(flow, convert_to_bgr=True)
+    cv2.imwrite(f"{path}flow.jpg", flow_vis)
 
 # load the model
 device = 'cuda'
